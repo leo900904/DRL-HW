@@ -3,17 +3,49 @@ body {
     margin: 20px;
 }
 
+/* 父容器：左右並排顯示 Input Grid 與 Random Action Results */
+#side-by-side-container {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    margin-top: 20px;
+    /* 關鍵：讓兩邊頂端對齊，而不是垂直置中 */
+    align-items: flex-start;
+}
+
+/* 若希望兩側標題也對齊，可將 margin-top 設為 0 */
+#input-grid-container h2,
+#random-results-container h2 {
+    margin-top: 0;
+}
+
+/* 左側：Input Grid 區塊 */
+#input-grid-container {
+    flex: 1;
+    min-width: 0;
+}
+
+/* 右側：Random Action Results 區塊 */
+#random-results-container {
+    flex: 1;
+    min-width: 0;
+}
+
 /* 輸入網格容器 */
 #grid-container {
     display: grid;
     gap: 5px;
-    margin-top: 20px;
+    margin-top: 10px;
     grid-template-columns: repeat(auto-fit, 50px);
 }
 
-/* 結果容器 */
-#vi-results-container,
-#random-results-container {
+/* Value Iteration 結果容器 */
+#vi-results-container {
+    margin-top: 30px;
+}
+
+/* 動畫容器 */
+#animation-container {
     margin-top: 30px;
 }
 
@@ -42,7 +74,7 @@ body {
     cursor: pointer;
 }
 
-/* 顏色設定 */
+/* 格子類別樣式 */
 .start { 
     background-color: green; 
     color: white; 
