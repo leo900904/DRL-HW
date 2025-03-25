@@ -7,32 +7,36 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-  <h1>Grid World with Value Iteration & Best Path</h1>
-  <label>Enter a number between 5 and 9:</label>
-  <input type="number" id="gridSize" min="5" max="9">
-  <button onclick="generateGrid()">Generate Square</button>
-  <button onclick="computePolicy()">Compute with Value Iteration Algorithm</button>
-  <button onclick="generateRandomPolicy()">Compute with Random Action</button>
-  
-  <!-- 父容器：左右並排顯示 Input Grid 與 Random Action Results -->
-  <div id="side-by-side-container">
+  <div id="centered-container">
+    <h1>Grid World with Value Iteration & Best Path</h1>
+    <label>Enter a number between 3 and 9:</label>
+    <!-- 在 h1 下面或適當位置 -->
+    <div id="button-row">
+      <label>Enter a number between 3 and 9:</label>
+      <input type="number" id="gridSize" min="3" max="9">
+      <button onclick="generateGrid()">Generate Square</button>
+      <button onclick="computePolicy()">Compute with Value Iteration Algorithm</button>
+      <button onclick="generateRandomPolicy()">Compute with Random Action</button>
+    </div>
     <div id="input-grid-container">
       <h2>Input Grid</h2>
       <p>Click on a cell to set up the start cell (green), end cell (red), or obstacles (gray).</p>
       <div id="grid-container"></div>
     </div>
+    
     <div id="random-results-container">
       <h2>Random Action Results</h2>
       <p>The result from Random Action will be displayed here.</p>
-      <!-- 新增專用容器，避免覆蓋標題 -->
       <div id="random-grid-container"></div>
     </div>
+    
+    <h2>Value Iteration Results</h2>
+    <p>The result from Value Iteration will be displayed here (Value Function and Policy side by side, then Best Path below).</p>
+    <div id="vi-results-container"></div>
+     
   </div>
-  
-  <h2>Value Iteration Results</h2>
-  <p>The result from Value Iteration will be displayed here (Value Function and Policy side by side, then Best Path below).</p>
-  <div id="vi-results-container"></div>
   
   <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
+
 </html>

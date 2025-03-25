@@ -8,8 +8,8 @@ let maxObstacles = 0;
 
 function generateGrid() {
     gridSize = parseInt(document.getElementById("gridSize").value);
-    if (isNaN(gridSize) || gridSize < 5 || gridSize > 9) {
-        alert("Please enter a number between 5 and 9.");
+    if (isNaN(gridSize) || gridSize < 3 || gridSize > 9) {
+        alert("Please enter a number between 3 and 9.");
         return;
     }
     maxObstacles = gridSize - 2;
@@ -237,16 +237,33 @@ function generateRandomPolicy() {
             randomPolicy[key] = actions[Math.floor(Math.random() * actions.length)];
         }
     }
-    // 只更新隨機網格部分，不清空整個 random-results-container (以免蓋掉標題文字)
+    
+    // 使用 generateRandomValueMatrix() 產生 value matrix (依你先前設定的隨機負值範圍)
+    const valueMatrix = generateRandomValueMatrix();
+    
+    // 清空隨機結果容器 (只更新 #random-grid-container)
     const randomContainer = document.getElementById("random-grid-container");
     randomContainer.innerHTML = "";
-    const randomPolicyGrid = document.createElement("div");
-    randomPolicyGrid.classList.add("grid");
-    randomPolicyGrid.style.gridTemplateColumns = `repeat(${gridSize}, 50px)`;
+    
+    // 建立一個父容器，讓兩個欄位並排顯示
+    const rowContainer = document.createElement("div");
+    rowContainer.classList.add("random-row");
+    
+    // 建立「policy matrix」欄位容器
+    const policyColumn = document.createElement("div");
+    policyColumn.classList.add("random-column");
+    const policyLabel = document.createElement("h3");
+    policyLabel.textContent = "policy matrix";
+    const policyGrid = document.createElement("div");
+    policyGrid.classList.add("grid");
+    policyGrid.style.gridTemplateColumns = `repeat(${gridSize}, 50px)`;
+    // 填入 policyGrid 的格子
     for (let i = 0; i < gridSize * gridSize; i++) {
         const cell = document.createElement("div");
         cell.classList.add("cell");
-        const key = `${Math.floor(i / gridSize)},${i % gridSize}`;
+        const row = Math.floor(i / gridSize);
+        const col = i % gridSize;
+        const key = `${row},${col}`;
         if (obstaclesList.includes(i)) {
             cell.textContent = "X";
             cell.style.backgroundColor = "black";
@@ -262,7 +279,148 @@ function generateRandomPolicy() {
         } else {
             cell.textContent = randomPolicy[key];
         }
-        randomPolicyGrid.appendChild(cell);
+        policyGrid.appendChild(cell);
     }
-    randomContainer.appendChild(randomPolicyGrid);
+    policyColumn.appendChild(policyLabel);
+    policyColumn.appendChild(policyGrid);
+    
+    // 建立「value matrix」欄位容器
+    const valueColumn = document.createElement("div");
+    valueColumn.classList.add("random-column");
+    const valueLabel = document.createElement("h3");
+    valueLabel.textContent = "value matrix";
+    const valueGrid = document.createElement("div");
+    valueGrid.classList.add("grid");
+    valueGrid.style.gridTemplateColumns = `repeat(${gridSize}, 50px)`;
+    // 填入 valueGrid 的格子
+    for (let i = 0; i < gridSize * gridSize; i++) {
+        const cell = document.createElement("div");
+        cell.classList.add("cell");
+        const row = Math.floor(i / gridSize);
+        const col = i % gridSize;
+        const key = `${row},${col}`;
+        if (obstaclesList.includes(i)) {
+            cell.textContent = "X";
+            cell.style.backgroundColor = "black";
+            cell.style.color = "white";
+        } else if (i === startIndex) {
+            cell.textContent = "S";
+            cell.style.backgroundColor = "green";
+            cell.style.color = "white";
+        } else if (i === endIndex) {
+            cell.textContent = "G";
+            cell.style.backgroundColor = "red";
+            cell.style.color = "white";
+        } else if (valueMatrix[key] !== undefined) {
+            cell.textContent = valueMatrix[key];
+        } else {
+            cell.textContent = "";
+        }
+        valueGrid.appendChild(cell);
+    }
+    valueColumn.appendChild(valueLabel);
+    valueColumn.appendChild(valueGrid);
+    
+    // 將兩個欄位加入父容器
+    rowContainer.appendChild(policyColumn);
+    rowContainer.appendChild(valueColumn);
+    
+    // 最後將父容器加入到隨機結果容器中
+    randomContainer.appendChild(rowContainer);
+}
+
+
+function evaluateRandomPolicy(randomPolicy) {
+    const gamma = 0.99;
+    const tolerance = 0.001;
+    let V = {};
+    // 初始化所有非障礙物狀態的 V(s) = 0
+    for (let i = 0; i < gridSize * gridSize; i++) {
+        if (obstaclesList.includes(i)) continue;
+        let row = Math.floor(i / gridSize);
+        let col = i % gridSize;
+        let key = `${row},${col}`;
+        V[key] = 0;
+    }
+    let diff = Infinity;
+    while (diff > tolerance) {
+        diff = 0;
+        let newV = { ...V };
+        for (let i = 0; i < gridSize * gridSize; i++) {
+            if (obstaclesList.includes(i)) continue;
+            let row = Math.floor(i / gridSize);
+            let col = i % gridSize;
+            let key = `${row},${col}`;
+            // 如果是終點，V(s)固定為 0
+            if (i === endIndex) {
+                newV[key] = 0;
+                continue;
+            }
+            let action = randomPolicy[key];
+            if (!action) continue;
+            let next;
+            switch (action) {
+                case '↑':
+                    next = i - gridSize;
+                    break;
+                case '↓':
+                    next = i + gridSize;
+                    break;
+                case '←':
+                    next = i - 1;
+                    break;
+                case '→':
+                    next = i + 1;
+                    break;
+                case 'GOAL':
+                    next = endIndex;
+                    break;
+                default:
+                    next = i;
+            }
+            // 檢查 next 狀態是否合法
+            let reward;
+            if (next < 0 || next >= gridSize * gridSize || obstaclesList.includes(next)) {
+                reward = -1; // 非法移動
+                next = i; // 留在原地
+            } else {
+                reward = (next === endIndex) ? 1 : -0.04;
+            }
+            let nextRow = Math.floor(next / gridSize);
+            let nextCol = next % gridSize;
+            let nextKey = `${nextRow},${nextCol}`;
+            newV[key] = reward + gamma * V[nextKey];
+            diff = Math.max(diff, Math.abs(newV[key] - V[key]));
+        }
+        V = newV;
+    }
+    return V;
+}
+/**
+ * 產生一個「負值到小正值」的 value matrix，
+ * 預設範圍大約在 [-4, 1.24] 之間。
+ */
+function generateRandomValueMatrix() {
+    const minVal = -4.0;     // 你可以視需要調整
+    const maxVal = 1.24;     // 你也可改成 2.0 或其他上限
+    let randomValueMatrix = {};
+
+    for (let i = 0; i < gridSize * gridSize; i++) {
+        if (obstaclesList.includes(i)) continue;  // 障礙物不給數值
+        const row = Math.floor(i / gridSize);
+        const col = i % gridSize;
+        const key = `${row},${col}`;
+
+        if (i === startIndex) {
+            // 若想保留 "S" 不顯示數值，可不設定 randomValueMatrix[key]
+            // randomValueMatrix[key] = 0; // or do nothing
+        } else if (i === endIndex) {
+            // 同理，若想保留 "G" 不顯示數值，可不設定
+        } else {
+            // 產生 [minVal, maxVal] 的亂數
+            const val = Math.random() * (maxVal - minVal) + minVal;
+            randomValueMatrix[key] = parseFloat(val.toFixed(2));
+        }
+    }
+    return randomValueMatrix;
 }
