@@ -1,0 +1,4 @@
+Final Success Rate: 77.0%
+Final Epsilon: 0.606
+Average Episode Length: 13.4
+Average Episode Reward: -8.3
