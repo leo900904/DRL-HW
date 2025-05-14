@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
-
+import os
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 import random
 import numpy as np
@@ -984,283 +984,57 @@ if __name__ == "__main__":
     with open('final_results.txt', 'w') as f:
         f.write(f"Double DQN Final Success Rate: {double_success:.1f}%\n")
         f.write(f"Dueling DQN Final Success Rate: {dueling_success:.1f}%\n")
-# 直接在 powershell 執行 以下指令
-  # $env:KMP_DUPLICATE_LIB_OK="TRUE"
-  # conda activate DRL-HW
-  # python ch3_ALL_IN_ONE.py
 
-# DQN Lightning Module
-class DQNLightning(pl.LightningModule):
-    def __init__(self, input_size=64, hidden_size1=150, hidden_size2=100, output_size=4, 
-                 learning_rate=1e-3, gamma=0.9, epsilon=1.0, epsilon_min=0.1, epsilon_decay=None, total_epochs=3000):
-        super().__init__()
-        self.save_hyperparameters()
-        
-        # Network architecture
-        self.network = nn.Sequential(
-            nn.Linear(input_size, hidden_size1),
-            nn.ReLU(),
-            nn.Linear(hidden_size1, hidden_size2),
-            nn.ReLU(),
-            nn.Linear(hidden_size2, output_size)
-        )
-        
-        # Target network
-        self.target_network = nn.Sequential(
-            nn.Linear(input_size, hidden_size1),
-            nn.ReLU(),
-            nn.Linear(hidden_size1, hidden_size2),
-            nn.ReLU(),
-            nn.Linear(hidden_size2, output_size)
-        )
-        self.target_network.load_state_dict(self.network.state_dict())
-        
-        # Experience replay buffer
-        self.memory = deque(maxlen=1000)
-        self.batch_size = 200
-        
-        # Training parameters
-        self.gamma = gamma
-        self.epsilon = epsilon
-        self.epsilon_min = epsilon_min
-        self.total_epochs = total_epochs
-        # 線性衰減
-        self.epsilon_decay = (epsilon - epsilon_min) / total_epochs if epsilon_decay is None else epsilon_decay
-        
-        # Metrics tracking
-        self.training_step_outputs = []
-        self.validation_step_outputs = []
-        self.episode_rewards = []
-        self.episode_lengths = []
-        self.success_rates = []
-        
-        # Initialize optimizer & scheduler
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate)
-        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, mode='min', factor=0.5, patience=20)
-        
-    def forward(self, x):
-        return self.network(x)
-    
-    def configure_optimizers(self):
-        return [self.optimizer], [self.scheduler]
-    
-    def training_step(self, batch, batch_idx):
-        # Unpack the batch data
-        if isinstance(batch, tuple):
-            state, action, reward, next_state, done = batch
-        else:
-            states, actions, rewards, next_states, dones = zip(*batch)
-            state = torch.cat(states)
-            action = torch.cat(actions)
-            reward = torch.cat(rewards)
-            next_state = torch.cat(next_states)
-            done = torch.cat(dones)
-        
-        # Get current Q values
-        current_q_values = self(state)
-        next_q_values = self.target_network(next_state)
-        
-        # Convert done tensor to float
-        done_float = done.float()
-        
-        # Compute target Q values
-        target_q_values = reward + (1 - done_float) * self.gamma * torch.max(next_q_values, dim=1)[0]
-        
-        # Get Q values for taken actions
-        action_q_values = current_q_values.gather(1, action.long().unsqueeze(1)).squeeze()
-        
-        # Compute loss with gradient clipping
-        loss = F.smooth_l1_loss(action_q_values, target_q_values)
-        
-        # Scheduler step
-        self.scheduler.step(loss)
-        
-        return loss
-    
-    def get_action(self, state):
-        if random.random() < self.epsilon:
-            return random.randint(0, 3)
-        with torch.no_grad():
-            q_values = self(state)
-            return torch.argmax(q_values).item()
+print("\n" + "=" * 50)
+print("作业4-3: Dueling DQN in PyTorch Lightning 实现")
+print("=" * 50)
+print("注意: 本实现包含以下高级强化学习训练技巧:")
+print("1. Dueling DQN 架构 - 分离状态价值和动作优势函数")
+print("2. Double DQN 技术 - 防止Q值高估问题")
+print("3. 目标网络 - 稳定训练过程")
+print("4. 梯度裁剪 - 防止梯度爆炸")
+print("5. 学习率调度 - 动态调整学习率")
+print("6. 防撞墙机制 - 给予撞墙行为负面反馈")
+print("7. 经验回放优化 - 更大的缓冲区和批次大小")
+print("8. Huber 损失函数 - 对异常值更为鲁棒")
+print("=" * 50)
+print("\n要启动完整训练，请运行: python train_dueling_dqn.py")
 
-def train_dqn_lightning(epochs=3000, mode='random', use_tensorboard=False):
-    # Initialize model
-    model = DQNLightning(total_epochs=epochs)
-    # 新增：訓練過程記錄
-    log_epochs = []
-    log_loss = []
-    log_success = []
-    log_epsilon = []
-    log_avg_reward = []
-    for epoch in range(epochs):
-        game = Gridworld(size=4, mode=mode)
-        state = torch.from_numpy(game.board.render_np().reshape(1,64)).float()
-        done = False
-        total_reward = 0
-        episode_length = 0
-        loss_value = None
-        while not done:
-            # Get action
-            action_idx = model.get_action(state)
-            action = action_set[action_idx]
-            # Take action
-            game.makeMove(action)
-            next_state = torch.from_numpy(game.board.render_np().reshape(1,64)).float()
-            reward = game.reward()
-            done = reward != -1  # 與原始 DQN 一致
-            # Store experience
-            model.memory.append((state, torch.tensor([action_idx]), 
-                               torch.tensor([reward]), next_state, 
-                               torch.tensor([done])))
-            # Train if enough samples
-            if len(model.memory) >= model.batch_size:
-                batch = random.sample(model.memory, model.batch_size)
-                state_batch = torch.cat([s for s, _, _, _, _ in batch])
-                action_batch = torch.cat([a for _, a, _, _, _ in batch])
-                reward_batch = torch.cat([r for _, _, r, _, _ in batch])
-                next_state_batch = torch.cat([s for _, _, _, s, _ in batch])
-                done_batch = torch.cat([d for _, _, _, _, d in batch])
-                batch_data = (state_batch, action_batch, reward_batch, next_state_batch, done_batch)
-                model.train()
-                loss = model.training_step(batch_data, 0)
-                model.optimizer.zero_grad()
-                loss.backward()
-                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-                model.optimizer.step()
-                if epoch % 2 == 0:
-                    model.target_network.load_state_dict(model.network.state_dict())
-                loss_value = loss.item()
-            state = next_state
-            total_reward += reward
-            episode_length += 1
-        model.episode_rewards.append(total_reward)
-        model.episode_lengths.append(episode_length)
-        if model.epsilon > model.epsilon_min:
-            model.epsilon -= model.epsilon_decay
-            if model.epsilon < model.epsilon_min:
-                model.epsilon = model.epsilon_min
-        # 每 10 回合記錄訓練過程
-        if epoch % 10 == 0:
-            success_rate = test_model(model, mode=mode, test_episodes=20)
-            model.success_rates.append(success_rate)
-            avg_reward = np.mean(model.episode_rewards[-10:]) if len(model.episode_rewards) >= 10 else np.mean(model.episode_rewards)
-            print(f"Episode {epoch}, Total Reward: {total_reward}, "
-                  f"Length: {episode_length}, Success Rate: {success_rate:.1f}%, "
-                  f"Epsilon: {model.epsilon:.2f}")
-            log_epochs.append(epoch)
-            log_loss.append(loss_value if loss_value is not None else 0)
-            log_success.append(success_rate)
-            log_epsilon.append(model.epsilon)
-            log_avg_reward.append(avg_reward)
-    # 畫訓練過程圖
-    import matplotlib.pyplot as plt
-    plt.figure(figsize=(10,5))
-    plt.plot(log_epochs, log_loss, label='Loss')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.title('Training Loss Curve')
-    plt.legend()
-    plt.savefig('training_loss_curve.png')
-    plt.close()
-    plt.figure(figsize=(10,5))
-    plt.plot(log_epochs, log_success, label='Success Rate')
-    plt.xlabel('Epoch')
-    plt.ylabel('Success Rate (%)')
-    plt.title('Training Success Rate Curve')
-    plt.legend()
-    plt.savefig('training_success_rate_curve.png')
-    plt.close()
-    plt.figure(figsize=(10,5))
-    plt.plot(log_epochs, log_epsilon, label='Epsilon')
-    plt.xlabel('Epoch')
-    plt.ylabel('Epsilon')
-    plt.title('Epsilon Decay Curve')
-    plt.legend()
-    plt.savefig('training_epsilon_curve.png')
-    plt.close()
-    plt.figure(figsize=(10,5))
-    plt.plot(log_epochs, log_avg_reward, label='Average Reward')
-    plt.xlabel('Epoch')
-    plt.ylabel('Average Reward (per 10 episodes)')
-    plt.title('Average Reward Curve')
-    plt.legend()
-    plt.savefig('training_avg_reward_curve.png')
-    plt.close()
-    plot_training_metrics(model)
-    print(f"Final Epsilon: {model.epsilon:.3f}")
-    return model
-
-def plot_training_metrics(model):
-    # Create plots directory
-    os.makedirs('plots', exist_ok=True)
-    
-    # Plot episode rewards
-    plt.figure(figsize=(10, 5))
-    plt.plot(model.episode_rewards)
-    plt.title('Episode Rewards')
-    plt.xlabel('Episode')
-    plt.ylabel('Total Reward')
-    plt.savefig('plots/episode_rewards.png')
-    plt.close()
-    
-    # Plot episode lengths
-    plt.figure(figsize=(10, 5))
-    plt.plot(model.episode_lengths)
-    plt.title('Episode Lengths')
-    plt.xlabel('Episode')
-    plt.ylabel('Steps')
-    plt.savefig('plots/episode_lengths.png')
-    plt.close()
-    
-    # Plot success rates
-    plt.figure(figsize=(10, 5))
-    plt.plot(model.success_rates)
-    plt.title('Success Rates')
-    plt.xlabel('Evaluation Point')
-    plt.ylabel('Success Rate (%)')
-    plt.savefig('plots/success_rates.png')
-    plt.close()
-
-def test_model(model, mode='random', test_episodes=100):
-    wins = 0
-    for _ in range(test_episodes):
-        game = Gridworld(size=4, mode=mode)
-        state = torch.from_numpy(game.board.render_np().reshape(1,64)).float()
-        done = False
-        
-        while not done:
-            action_idx = model.get_action(state)
-            action = action_set[action_idx]
-            game.makeMove(action)
-            state = torch.from_numpy(game.board.render_np().reshape(1,64)).float()
-            reward = game.reward()
-            done = reward != -1
-            
-            if reward > 0:
-                wins += 1
-                break
-    
-    return 100.0 * wins / test_episodes
-
+# 如果这个文件被直接执行(而不是导入)，则运行以下代码
 if __name__ == "__main__":
-    # Create necessary directories
-    os.makedirs('checkpoints', exist_ok=True)
-    os.makedirs('plots', exist_ok=True)
-    
-    # Train model
-    print("Training DQN with PyTorch Lightning...")
-    model = train_dqn_lightning(epochs=3000, mode='random', use_tensorboard=False)
-    
-    # Test model
-    print("\nTesting model performance...")
-    success_rate = test_model(model, mode='random')
-    print(f"Success rate: {success_rate:.1f}%")
-    
-    # Save results
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    with open(f'results_{timestamp}.txt', 'w') as f:
-        f.write(f"Final Success Rate: {success_rate:.1f}%\n")
-        f.write(f"Final Epsilon: {model.epsilon:.3f}\n")
-        f.write(f"Average Episode Length: {np.mean(model.episode_lengths):.1f}\n")
-        f.write(f"Average Episode Reward: {np.mean(model.episode_rewards):.1f}\n")
+    # 检查是否存在我们创建的文件
+    try:
+        from dueling_dqn_lightning import DuelingDQNLightning, train_dueling_dqn, test_model
+        print("\n成功导入 Dueling DQN Lightning 实现!")
+        
+        import os
+        if not os.path.exists("models"):
+            os.makedirs("models")
+        if not os.path.exists("plots"):
+            os.makedirs("plots")
+            
+        # 提示用户选择是否运行完整训练
+        run_training = input("\n是否要立即开始训练? (y/n): ").lower() == 'y'
+        
+        if run_training:
+            # 导入需要的类和运行训练
+            from Gridworld import Gridworld
+            print("\n开始训练 Dueling DQN with Lightning (Random Mode)...")
+            model = train_dueling_dqn(
+                Gridworld, 
+                epochs=1000,       # 减少训练轮次以便快速演示
+                mode='random',
+                hidden_size=256,
+                lr=3e-4,
+                batch_size=128,
+                memory_size=10000
+            )
+            
+            # 训练后的最终测试
+            success_rate = test_model(model, Gridworld, mode='random', test_episodes=100)
+            print(f"\n最终成功率: {success_rate:.1f}%")
+        else:
+            print("\n您可以稍后通过运行 'python train_dueling_dqn.py' 来开始完整训练")
+    except ImportError as e:
+        print(f"\n无法导入 Dueling DQN Lightning 模块: {e}")
+        print("请确保 dueling_dqn_lightning.py 文件存在于当前目录")

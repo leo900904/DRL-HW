@@ -1,9 +1,0 @@
-epsilon: 1.0
-epsilon_decay: 0.995
-epsilon_min: 0.1
-gamma: 0.9
-hidden_size1: 150
-hidden_size2: 100
-input_size: 64
-learning_rate: 0.001
-output_size: 4
