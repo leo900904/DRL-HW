@@ -1,0 +1,118 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    color: #333;
+    text-align: center;
+    margin: 0;
+    padding: 20px;
+}
+
+#centered-container {
+    margin: 20px auto;
+    max-width: 800px;
+    padding: 20px;
+    background-color: #fff;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+}
+
+h1, h2, h3 {
+    color: #555;
+}
+
+#button-row {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+#input-grid-container,
+#random-results-container,
+#vi-results-container {
+    margin-top: 20px;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+}
+
+.result-row {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+}
+
+.random-column {
+    flex: 1;
+    text-align: center;
+}
+
+#grid-container,
+#random-policy-grid,
+#random-value-grid,
+#optimal-policy-grid,
+#optimal-value-grid {
+    display: grid;
+    gap: 5px;
+    margin-top: 10px;
+    justify-content: center;
+}
+
+.cell {
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #ccc;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    border-radius: 4px;
+}
+
+.cell:hover {
+    background-color: #e9e9e9;
+}
+
+.start {
+    background-color: #4CAF50; /* Green */
+    color: white;
+}
+
+.end {
+    background-color: #f44336; /* Red */
+    color: white;
+}
+
+.obstacle {
+    background-color: #9E9E9E; /* Gray */
+    color: white;
+}
+
+.value-cell {
+    font-weight: bold;
+    color: #007BFF; /* Blue */
+}
+
+.policy-cell {
+    font-size: 18px;
+    font-weight: bold;
+    color: #FF9800; /* Orange */
+}
+
+button {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 5px;
+    background-color: #007BFF;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+button:hover {
+    background-color: #0056b3;
+} 
